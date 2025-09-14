@@ -1,14 +1,15 @@
 import tiktoken
 from pypdf import PdfReader
-
+from typing import Generator, List, Dict
 tokenizer = tiktoken.get_encoding("cl100k_base")
-
-def fixed_chunk_pdf(pdf_path, chunk_size, overlap, cross_page, batch_size):
+from loguru import logger
+from tqdm import tqdm
+def fixed_chunk_pdf(pdf_path:str, chunk_size:int, overlap:int, cross_page:bool, batch_size:int) -> Generator[List[Dict[str, str]], None, None]:
     reader = PdfReader(pdf_path)
     buffer_tokens = []
     batch_chunks = []
-    
-    for page_num, page in enumerate(reader.pages):
+    logger.info("Processing pages")
+    for page_num, page in enumerate(tqdm(reader.pages,desc="Processing Pages")):
         text = page.extract_text()
         if not text:
             continue
