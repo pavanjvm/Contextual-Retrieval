@@ -11,7 +11,7 @@ def pdf_to_chunks(pdf_path: str, chunk_size: int, overlap: int, cross_page: bool
     batch_chunks = []
     batch_token_count = 0
     current_page = 0
-    max_tokens = 300_000
+    max_tokens = 200000
 
     for page_num, page in enumerate(reader.pages):
         text = page.extract_text()
@@ -57,6 +57,7 @@ def pdf_to_chunks(pdf_path: str, chunk_size: int, overlap: int, cross_page: bool
         batch_chunks.append({
             "page": current_page + 1,
             "chunk": chunk_text
+
         })
 
     # Yield final batch

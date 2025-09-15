@@ -70,13 +70,14 @@ def hybrid_search(query_text:str, limit=5):
 
 
 
-def store_chunks_as_embeddings(batch_chunks:list,batch_upload_size:int,i:int):
+def store_chunks_as_embeddings(batch_chunks:list,batch_upload_size:int,j:int):
 
     points = []
     texts = [d["chunk"] for d in batch_chunks]
+    logger.info(f"\ntotal chunks in batch {j+1} : {len(texts)} ")
     response = get_embeddings(texts)
 
-    for i,text in enumerate(texts):
+    for i,text in enumerate(tqdm(texts,desc = f"batch {j+1}", unit = "chunk",ncols = 100)):  #add tqdm heregit
         point = PointStruct(
         id=uuid.uuid4().hex,  
         payload={"text":text},
@@ -90,22 +91,25 @@ def store_chunks_as_embeddings(batch_chunks:list,batch_upload_size:int,i:int):
             }
         )
         points.append(point)
-    
+    start_time = time.time()
     qdrant.upload_points(
     collection_name= "hybrid-rag", 
     points=points, 
     batch_size=batch_upload_size
     )
-    logger.info(f"uploaded batch {i} successfully")
+    elapsed = time.time() - start_time
+    logger.info(
+        f"\nuploaded {i+1} chunks successfully in batch {j+1} "
+        f"(upload time: {elapsed:.2f} sec)"
+    )
     
 def pdf_to_embeddings(pdf_path:str, chunk_size:int, overlap:int, cross_page:bool):
     start_time = time.time() 
     chunks = pdf_to_chunks(pdf_path, chunk_size, overlap, cross_page)
-    for i, chunks in enumerate(tqdm(chunks, desc="embedding the chunks by batches ")):
-        store_chunks_as_embeddings(chunks,10,i)
-        tqdm.write(f"processed chunk {i}") 
+    for i, chunks in enumerate(chunks):
+        store_chunks_as_embeddings(chunks,30,i)
     elapsed = time.time() - start_time
-    logger.info(f"Processed all chunks and stored them in the DB (took {elapsed:.2f} seconds)")
+    logger.info(f"\nProcessed all chunks and stored them in the DB (took {elapsed:.2f} seconds)")
     
 
 
