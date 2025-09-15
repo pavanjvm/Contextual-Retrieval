@@ -70,12 +70,13 @@ def hybrid_search(query_text:str, limit=5):
 
 
 
-def store_chunks_as_embeddings(batch_chunks:list,batch_upload_size:int):
+def store_chunks_as_embeddings(batch_chunks:list,batch_upload_size:int,i:int):
 
     points = []
-    response = get_embeddings(batch_chunks)
+    texts = [d["chunk"] for d in batch_chunks]
+    response = get_embeddings(texts)
 
-    for i,text in enumerate(batch_chunks):
+    for i,text in enumerate(texts):
         point = PointStruct(
         id=uuid.uuid4().hex,  
         payload={"text":text},
@@ -83,28 +84,29 @@ def store_chunks_as_embeddings(batch_chunks:list,batch_upload_size:int):
             "dense": response.data[i].embedding
             ,
             "sparse": Document(
-                text=text[i],
+                text=texts[i],
                 model="qdrant/bm25"
                 )
             }
         )
         points.append(point)
-
+    
     qdrant.upload_points(
     collection_name= "hybrid-rag", 
     points=points, 
     batch_size=batch_upload_size
     )
-    # logger.info("uploaded a batch successfully")
+    logger.info(f"uploaded batch {i} successfully")
     
-def pdf_to_embeddings(pdf_path:str, chunk_size:int, overlap:int, cross_page:bool, batch_size:int):
+def pdf_to_embeddings(pdf_path:str, chunk_size:int, overlap:int, cross_page:bool):
     start_time = time.time() 
-    chunks = pdf_to_chunks(pdf_path, chunk_size, overlap, cross_page, batch_size)
-    for i, chunk in enumerate(tqdm(chunks, desc="embedding the chunks by batches ")):
-        store_chunks_as_embeddings(chunk,10)
+    chunks = pdf_to_chunks(pdf_path, chunk_size, overlap, cross_page)
+    for i, chunks in enumerate(tqdm(chunks, desc="embedding the chunks by batches ")):
+        store_chunks_as_embeddings(chunks,10,i)
         tqdm.write(f"processed chunk {i}") 
     elapsed = time.time() - start_time
-    tqdm.write(f"Processed all chunks and stored them in the DB (took {elapsed:.2f} seconds)")
+    logger.info(f"Processed all chunks and stored them in the DB (took {elapsed:.2f} seconds)")
     
 
 
+pdf_to_embeddings("AIE.pdf",500,100,True)
