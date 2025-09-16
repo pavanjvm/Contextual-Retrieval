@@ -1,11 +1,11 @@
 import os
+import openai
 from dotenv import load_dotenv
 load_dotenv()
 from qdrant_client.models import VectorParams, Distance
 from qdrant_client import QdrantClient, models
 from qdrant_client.http.models import PointStruct, Document
 import uuid
-from embedding.openai_embedder import get_embeddings
 from loguru import logger
 from tqdm import tqdm
 from chunking.fixed_size_chunking import pdf_to_chunks
@@ -30,45 +30,15 @@ if not qdrant.collection_exists(collection_name="hybrid-rag"):
             sparse_vectors_config={"sparse": models.SparseVectorParams()},
         )
 
-
-
-def hybrid_search(query_text:str, limit=5):
-    """
-    Simple hybrid search - returns most similar vectors for LLM context
-    """
-    # Get dense embedding for the query
-    query_embeddings = get_embeddings([query_text])
+def get_embeddings(texts:list):
     
-    
-    # Perform hybrid search using FusionQuery
-    search_result = qdrant.query_points(
-        collection_name="hybrid-rag",
-        query=models.FusionQuery(
-            fusion=models.Fusion.RRF  # Reciprocal Rank Fusion
-        ),
-        prefetch=[
-            # Dense vector search (semantic similarity)
-            models.Prefetch(
-                query=query_embeddings.data[0].embedding,
-                using="dense",
-                limit=limit * 2  # Get more candidates for better fusion
-            ),
-            # Sparse vector search (keyword matching)
-            models.Prefetch(
-                query=models.Document(
-                    text=query_text,
-                    model="qdrant/bm25"
-                ),
-                using="sparse", 
-                limit=limit * 2
-            ),
-        ],
-        limit=limit
-    )
-    
-    return search_result.points
-
-
+    # logger.info ("creating embeddings")
+    response = openai.embeddings.create(
+            model="text-embedding-3-large",
+            dimensions = 1024,
+            input=texts
+        )
+    return response
 
 def store_chunks_as_embeddings(batch_chunks:list,batch_upload_size:int,j:int):
 
@@ -111,6 +81,35 @@ def pdf_to_embeddings(pdf_path:str, chunk_size:int, overlap:int, cross_page:bool
     elapsed = time.time() - start_time
     logger.info(f"\nProcessed all chunks and stored them in the DB (took {elapsed:.2f} seconds)")
     
+def knowledge_retriever(query_text:str, limit=5):
+    query_embeddings = get_embeddings(query_text)    
+    # Perform hybrid search using FusionQuery
+    search_result = qdrant.query_points(
+        collection_name="hybrid-rag",
+        query=models.FusionQuery(
+            fusion=models.Fusion.RRF  # Reciprocal Rank Fusion
+        ),
+        prefetch=[
+            # Dense vector search (semantic similarity)
+            models.Prefetch(
+                query=query_embeddings.data[0].embedding,
+                using="dense",
+                limit=limit * 2  # Get more candidates for better fusion
+            ),
+            # Sparse vector search (keyword matching)
+            models.Prefetch(
+                query=models.Document(
+                    text=query_text,
+                    model="qdrant/bm25"
+                ),
+                using="sparse", 
+                limit=limit * 2
+            ),
+        ],
+        limit=limit
+    )
+    # print(search_result.points)
+    return search_result.points
 
 
-pdf_to_embeddings("AIE.pdf",500,100,True)
+# pdf_to_embeddings("AIE.pdf",500,100,True)

@@ -1,7 +1,9 @@
 import json
 from embedding.embedding_handler import knowledge_retriever
+from typing import List,Dict,Any
+from openai import OpenAI
 class Agent:
-    def __init__(self,client,model,instruction,tools,memory_limit):
+    def __init__(self,client:OpenAI,model:str,instruction:str,tools:List[Any],memory_limit:int):
         self.client = client
         self.model = model
         self.memory_limit = memory_limit
@@ -18,22 +20,36 @@ class Agent:
                 return
             self.messages.append({"role":"user","content":message})
             result = self.execute()
+            # print(result)
             for item in result:
-                if item.type == "output_message":
-                    self.messages.append({"role":"assistant","content":item.text})
-                    print("assistan: ",item.text)
+                if getattr(item, "content", None):
+                    for content in item.content:
+                        self.messages.append({"role":"assistant","content":content.text})
+                        print("assistant: ",content.text)
                 elif item.type == "function_call":
-                    if item.name == "hybrid_search":
-                        output = knowledge_retriever(json.loads(item.arguments))
+                    self.messages.append({"type":"function_call","name":item.name,"arguments":item.arguments,"call_id":item.call_id})
+                    if item.name == "knowledge_retriever":
+                        output = knowledge_retriever(item.arguments)
+                        serializable_output = [
+                                                {
+                                                    "id": point.id,
+                                                    "version": point.version,
+                                                    "score": point.score,
+                                                    "text": point.payload.get("text") if point.payload else None
+                                                }
+                                                for point in output
+                                            ]
                         self.messages.append({"type":"function_call_output",
                                                 "call_id":item.call_id,
                                                 "output":json.dumps({
-                                                    "knowledge_retriever":output})})
+                                                    "knowledge_retriever":serializable_output})})
+                        print ("this is the result   ",result)
             if len(self.messages) > self.memory_limit:
                 self.messages = self.messages[-self.memory_limit:]
 
 
     def execute(self):
+        # print(self.messages)
         response = self.client.responses.create(
             model = self.model,
             tools = self.tools,
