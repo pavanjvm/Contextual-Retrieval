@@ -25,7 +25,7 @@ class Agent:
                 if getattr(item, "content", None):
                     for content in item.content:
                         self.messages.append({"role":"assistant","content":content.text})
-                        print("assistant_o: ",content.text)
+                        print("assistantO: ",content.text)
                 elif item.type == "function_call":
                     self.messages.append({"type":"function_call","name":item.name,"arguments":item.arguments,"call_id":item.call_id})
                     if item.name == "knowledge_retriever":
@@ -45,7 +45,7 @@ class Agent:
                                                 "output":json.dumps({
                                                     "knowledge_retriever":serializable_output})})
                         tool_resp = self.execute()
-                        print("assistant_f: ",tool_resp.output_text)
+                        print("assistant: ",tool_resp.output_text)
             
                         
             if len(self.messages) > self.memory_limit:
