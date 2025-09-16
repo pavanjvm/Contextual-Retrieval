@@ -112,4 +112,4 @@ def knowledge_retriever(query_text:str, limit=5):
     return search_result.points
 
 
-# pdf_to_embeddings("AIE.pdf",500,100,True)
+# pdf_to_embeddings("_OceanofPDF.com_The_richest_man_of_Babylon_-_George_clason.pdf",500,100,True)

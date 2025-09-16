@@ -21,11 +21,11 @@ class Agent:
             self.messages.append({"role":"user","content":message})
             result = self.execute()
             # print(result)
-            for item in result:
+            for item in result.output:
                 if getattr(item, "content", None):
                     for content in item.content:
                         self.messages.append({"role":"assistant","content":content.text})
-                        print("assistant: ",content.text)
+                        print("assistant_o: ",content.text)
                 elif item.type == "function_call":
                     self.messages.append({"type":"function_call","name":item.name,"arguments":item.arguments,"call_id":item.call_id})
                     if item.name == "knowledge_retriever":
@@ -39,11 +39,15 @@ class Agent:
                                                 }
                                                 for point in output
                                             ]
+                        print(serializable_output)
                         self.messages.append({"type":"function_call_output",
                                                 "call_id":item.call_id,
                                                 "output":json.dumps({
                                                     "knowledge_retriever":serializable_output})})
-                        print ("this is the result   ",result)
+                        tool_resp = self.execute()
+                        print("assistant_f: ",tool_resp.output_text)
+            
+                        
             if len(self.messages) > self.memory_limit:
                 self.messages = self.messages[-self.memory_limit:]
 
@@ -55,4 +59,4 @@ class Agent:
             tools = self.tools,
             input = self.messages
         )
-        return response.output
+        return response
