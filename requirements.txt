@@ -1,0 +1,9 @@
+openai
+python-dotenv
+qdrant-client
+tiktoken
+pypdf
+loguru
+tqdm
+langchain-openai
+uqlm
